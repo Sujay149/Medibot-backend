@@ -4,13 +4,17 @@ from basic import run_basic_model
 from premium import run_premium_model
 from rag import answer_with_rag
 
+
+
+
 app = FastAPI()
 
 @app.post("/prescription")
-async def prescription(file: UploadFile):
-    contents = await file.read()
-    result = analyze_prescription(contents)
-    return {"result": result}
+async def analyze(file: UploadFile, api_key: str = Form(...), image_type: str = Form("Prescription Receipt")):
+    image_bytes = await file.read()
+    result = analyze_prescription(image_bytes, api_key, image_type)
+    return {"analysis": result}
+
 
 @app.get("/basic")
 def basic():
