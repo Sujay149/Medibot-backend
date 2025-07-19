@@ -1,44 +1,32 @@
-# Streamlit and Image processing
+# UI and Visualization
 streamlit
+gradio
+
+# Image and PDF processing
 Pillow
+PyMuPDF
 
 # Gemini API
 google-generativeai
 
-# Gradio UI
-gradio
-
-# Ollama client (OpenAI-compatible)
-openai
-
-# PDF parsing
-PyMuPDF
-
-# Text embeddings and search
+# Embeddings and data
 faiss-cpu
 numpy
 pandas
 
-# Git handling
-gitpython  # Optional: if you're cloning or interacting with repos
+# Git interaction (optional)
+gitpython
 
-# Whisper for speech-to-text
+# Whisper (speech-to-text from GitHub)
 git+https://github.com/openai/whisper.git
 
-# TTS and audio handling
+# Text-to-speech and audio
 gtts
 soundfile
-libsndfile1==1.0.31  # Needed for soundfile
+# libsndfile1 is system-level, installed via apt on local systems
 
 # Translation
-googletrans==4.0.0rc1  # Working version for Google Translate
+googletrans==4.0.0rc1
 
-# System tools (usually preinstalled, just noted)
-# ffmpeg and libsndfile1 are OS packages, not Python pip packages
-# To install via apt:
-#   sudo apt install -y ffmpeg libsndfile1
-
-
-#whisper 
-sudo apt-get install -y ffmpeg
-sudo apt-get install -y libsndfile1
+# OpenAI-compatible APIs
+openai
