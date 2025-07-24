@@ -1,51 +1,3 @@
-!apt update && apt install -y curl git
-
-
-!pip install TTS
-
-
-
-!curl -fsSL https://ollama.com/install.sh | sh
-
-
-OLLAMA_API_URL = "http://127.0.0.1:11434"
-!nohup ollama serve > /dev/null 2>&1 &
-
-
-!ollama pull llama3.2
-
-
-!pip install openai
-
-!pip install gradio
-
-!pip install PyMuPDF
-
-!pip install faiss-cpu
-
-!ollama pull nomic-embed-text
-
-!pip uninstall pandas -y
-!pip install pandas --upgrade
-
-!pip install git+https://github.com/openai/whisper.git
-
-!apt-get install -y ffmpeg
-
-
-!pip install googletrans
-
-!apt-get install -y libsndfile1
-!pip install soundfile
-
-
-!pip install gtts
-
-!ollama pull gemma3n
-
-!ollama pull deepseek-r1:1.5b
-
-!pip install pymongo
 
 import gradio as gr
 import asyncio
@@ -58,23 +10,26 @@ import whisper
 from googletrans import Translator
 import pandas as pd
 import fitz
+
 import os
-from pymongo import MongoClient
-import datetime
 
+# GitHub-hosted OpenAI-compatible models
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
+BASE_URL = "https://models.github.ai/inference"
 
+AVAILABLE_MODELS = [
+    "openai/gpt-4.1",
+    "openai/gpt-4.1-mini",
+    "openai/gpt-4o",
+    "openai/gpt-4o-mini",
+    "openai/gpt-4.1-nano"
+]
 
 # Initialize OpenAI API and Whisper Model
 openai = OpenAI(base_url="http://localhost:11434/v1", api_key="ollama")
 whisper_model = whisper.load_model("tiny")
 
-
-# MongoDB
-MONGO_URI="mongodb://localhost:27017/"
-client=MongoClient(MONGO_URI)
-db=client["medibot"]
-conversations_collection=db["conversations"]
-
+# Initialize TTS for multilingual support (Load default English model)
 
 
 # Placeholder for your RAG data
@@ -163,10 +118,11 @@ def retrieve_relevant_info(user_input, docs, faiss_index, k=3):
     return [docs[idx] for idx in I[0] if 0 <= idx < len(docs)]
 
 async def rag_response(transcribed_text, user_lang, selected_model):
-    translated_input = await translate_text(transcribed_text, target_lang='en')  # Translate user input to English
+    translated_input = await translate_text(transcribed_text, target_lang='en')
     relevant_info = retrieve_relevant_info(translated_input, rag_documents, index)
     rag_context = "\n\n".join(relevant_info)
 
+    # Full prompt stays the same for now; format can vary by model
     full_prompt = f"""
 Relevant medical document excerpts:
 {rag_context}
@@ -182,62 +138,35 @@ Please provide a clear, concise description, dietary recommendations, symptoms, 
         {"role": "user", "content": full_prompt}
     ]
 
-    response = ""
-    if selected_model == "deepseek":
-        stream = openai.chat.completions.create(
-            messages=[
-                {"role": "system", "content": system_message},
-                {"role": "user", "content": full_prompt}
-            ],
-            model="deepseek-r1:1.5b",
-            stream=True
-        )
-        response = ""
-        for chunk in stream:
-            if chunk.choices[0].delta.content:
-                response += chunk.choices[0].delta.content
-
-    elif selected_model == "gemma3n":
-        stream = openai.chat.completions.create(
-            model="gemma3n",
-            messages=[{"role": "system", "content": system_message}, {"role": "user", "content": full_prompt}],
-            stream=True
-        )
-        response = ""
-        for chunk in stream:
-            if chunk.choices[0].delta.content:
-                response += chunk.choices[0].delta.content
+    # If GitHub-hosted model
+    if selected_model in AVAILABLE_MODELS:
+        try:
+            client = OpenAI(base_url=BASE_URL, api_key=GITHUB_TOKEN)
+            response = client.chat.completions.create(
+                model=selected_model,
+                messages=messages,
+                temperature=0.7,
+                top_p=0.9
+            )
+            response_text = response.choices[0].message.content
+        except Exception as e:
+            return f"⚠️ Error from GitHub Model: {e}", None
     else:
+        # Use default Ollama (local) model
+        openai = OpenAI(base_url="http://localhost:11434/v1", api_key="ollama")
+        response_text = ""
         stream = openai.chat.completions.create(model="llama3.2", messages=messages, stream=True)
-        response = ""
         for chunk in stream:
             delta = chunk.choices[0].delta.content
             if delta:
-                response += delta
+                response_text += delta
 
-
-    # Translate the response back to the user's selected language
-    translated_response = await translate_text(response, target_lang=user_lang)
-
-    # Now, generate speech in the selected language
+    translated_response = await translate_text(response_text, target_lang=user_lang)
     audio_path = f"output_{uuid.uuid4().hex}.mp3"
     gtts_tts = gTTS(text=translated_response, lang=user_lang)
     gtts_tts.save(audio_path)
 
-
-    conversations_collection.insert_one({
-        "original_message": transcribed_text,
-        "translated_message": translated_input,
-        "model_used": selected_model,
-        "raw_response": response,
-        "translated_response": translated_response,
-        "language": user_lang,
-        "timestamp": datetime.datetime.utcnow()
-    })
-
-
-    return translated_response, audio_path  # Ensure both text and audio are returned
-
+    return translated_response, audio_path
 
 
 # Remove unwanted characters from text before passing to TTS
@@ -246,17 +175,17 @@ async def clean_text_for_tts(text):
 
 
 async def handle_text_input(text, lang, selected_model):
-    cleaned_text = await clean_text_for_tts(text)  # Clean text before passing to TTS
+    cleaned_text = await clean_text_for_tts(text)
     return await rag_response(cleaned_text, lang, selected_model)
+
 
 with gr.Blocks() as demo:
     gr.Markdown("## 🎧 Whisper Medical Assistant")
-
-    model_select=gr.Dropdown(
-        label="select model",
-        choices=["llama3.2","deepseek","gemma3n"],
-        value="llama3.2"
-    )
+    model_selector = gr.Dropdown(
+    label="Select Generation Model",
+    choices=["ollama/llama3.2"] + AVAILABLE_MODELS,
+    value="ollama/llama3.2"
+)
 
     audio_input = gr.Audio(type="filepath", label="Speak your question", interactive=True)
     text_input = gr.Textbox(label="Or Type your question", placeholder="Type here...", interactive=True)
@@ -273,24 +202,24 @@ with gr.Blocks() as demo:
     )
 
     # Transcribe audio (with multilingual support)
+    # Audio input handling
     audio_input.change(
-        fn=transcribe_audio,
-        inputs=[audio_input, selected_lang],
-        outputs=[transcription_output]  # Only output the transcription result
-    ).then(
-        fn=rag_response,
-        inputs=[transcription_output, selected_lang],
-        outputs=[rag_output, audio_output]
-    )
+    fn=transcribe_audio,
+    inputs=[audio_input, selected_lang],
+    outputs=[transcription_output]
+).then(
+    fn=rag_response,
+    inputs=[transcription_output, selected_lang, model_selector],
+    outputs=[rag_output, audio_output]
+)
 
-    # Text input
+# Text input handling
     submit_button.click(
-        fn=handle_text_input,
-        inputs=[text_input, selected_lang, model_select],
-        outputs=[rag_output, audio_output]
-    )
+    fn=handle_text_input,
+    inputs=[text_input, selected_lang, model_selector],
+    outputs=[rag_output, audio_output]
+)
+
 
 demo.launch(inbrowser=True, debug=True, share=True)
-
-
 

@@ -1,29 +1,25 @@
-from fastapi import FastAPI, UploadFile, Form
-from prescription import analyze_prescription
-from basic import run_basic_model
-from premium import run_premium_model
-from rag import answer_with_rag
+from fastapi import FastAPI, Request
+from pydantic import BaseModel
+import uvicorn
 
-
-
+# Import functions from your converted scripts
+from base import run_base_chat
+from premium import run_premium_chat
 
 app = FastAPI()
 
-@app.post("/prescription")
-async def analyze(file: UploadFile, api_key: str = Form(...), image_type: str = Form("Prescription Receipt")):
-    image_bytes = await file.read()
-    result = analyze_prescription(image_bytes, api_key, image_type)
-    return {"analysis": result}
+class ChatRequest(BaseModel):
+    message: str
 
+@app.post("/chat/base")
+def chat_base(req: ChatRequest):
+    response = run_base_chat(req.message)
+    return {"response": response}
 
-@app.get("/basic")
-def basic():
-    return {"result": run_basic_model()}
+@app.post("/chat/premium")
+def chat_premium(req: ChatRequest):
+    response = run_premium_chat(req.message)
+    return {"response": response}
 
-@app.get("/premium")
-def premium():
-    return {"result": run_premium_model()}
-
-@app.post("/rag")
-async def rag(input_text: str = Form(...)):
-    return {"answer": answer_with_rag(input_text)}
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000)
