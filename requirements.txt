@@ -10,6 +10,16 @@ babel==2.17.0
 beautifulsoup4==4.13.4
 bleach==6.2.0
 gradio
+faiss-cpu==1.7.4
+fastapi
+uvicorn
+gTTS
+whisper
+googletrans==4.0.0rc1
+pandas
+PyMuPDF  # this is the actual package for `import fitz`
+pydantic
+
 certifi==2025.7.14
 cffi==1.17.1
 charset-normalizer==3.4.2
