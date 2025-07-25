@@ -14,7 +14,7 @@ pandas
 PyMuPDF
 pydub
 python-multipart
-scipy==1.11.4
+
 
 
 torch
