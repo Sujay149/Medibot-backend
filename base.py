@@ -14,13 +14,14 @@ import os
 
 
 
+
 # Initialize OpenAI API and Whisper Model
 openai = OpenAI(base_url="http://localhost:11434/v1", api_key="ollama")
 whisper_model = whisper.load_model("tiny")
 
 
 # Placeholder for your RAG data
-rag_df = pd.read_csv('/content/updated_disease_data_13_fuzzy_filled (1).csv')
+rag_df = pd.read_csv('updated_disease_data_13_fuzzy_filled (1).csv')
 rag_df2 = pd.read_csv('/content/serious_diseases.csv')
 rag_df3 = pd.read_csv('/content/dis_descp.csv')
 
