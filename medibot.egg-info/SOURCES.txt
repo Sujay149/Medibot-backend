@@ -1,0 +1,6 @@
+setup.py
+medibot.egg-info/PKG-INFO
+medibot.egg-info/SOURCES.txt
+medibot.egg-info/dependency_links.txt
+medibot.egg-info/requires.txt
+medibot.egg-info/top_level.txt
